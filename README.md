@@ -20,4 +20,4 @@ Use make command to build, options: prep (creates output directories), debug, re
 
 Output file is generated in debug/ or release/ directory based on build type
 
-Also runs under windows, tested with Visual Studio 2015 (project and solution files are included)
+Works under windows, tested with Visual Studio 2015 (project and solution files are included)
