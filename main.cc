@@ -47,12 +47,12 @@ int main()
     CHashMap<int, char> map(10);
     //std::thread t([&map]() -> void { map->insert(3, 'k'); });
     std::thread t(f, &map);
-    std::thread t2(f1, &map);
-    std::thread t1(f2, &map);
+    //std::thread t2(f1, &map);
+    //std::thread t1(f2, &map);
 
     t.join();
-    t1.join();
-    t2.join();
+    //t1.join();
+    //t2.join();
 
     map.print();
     return 0;

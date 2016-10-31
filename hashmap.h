@@ -11,8 +11,9 @@
 // hash function is implemented as modulus of the key with respect to array size
 // supports insert, remove, operator[], clear, print, assignment, move
 // supports resize operation to change array size - complexity O(N), where N is the number of elements in the hashmap
-// thread-safety is gained using shared_mutex, which is locked using shared_lock during read operations, and locked using unique_lock during write operations,
-// so that multiple readers can read at the same time, but only one writer writes at a time
+// thread-safety is gained using shared_timed_mutex, which is locked using shared_lock during read operations, and locked using unique_lock during write operations,
+// so that multiple readers can read at the same time, but only one writer writes at a time. shared_timed_mutex is used to comply with C++14 standard.
+// with C++17 standard shared_timed_mutex can be replaced with more efficient shared_mutex (which don't have timed locking support)
 template <class KeyType, class ValueType>
 class CHashMap
 {
@@ -38,7 +39,7 @@ private:
     // node structure for implementing hashmap chaining
     // singly-linked list
     // contains: key, value, a link to the next node in list
-    template <class KeyType, class ValueType>
+    //template <class KeyType, class ValueType>
     struct ListNode
     {
         ListNode(const KeyType& k, const ValueType& v)
@@ -51,9 +52,9 @@ private:
 private:
     // fixed size table
     int m_TableSize;
-    ListNode<KeyType, ValueType>** m_Table;
+    ListNode** m_Table;
     // shared mutex
-    mutable std::shared_mutex m_Mutex;
+    mutable std::shared_timed_mutex m_Mutex;
 };
 
 // implementation of CHashMap class
@@ -64,7 +65,7 @@ template <class KeyType, class ValueType>
 CHashMap<KeyType, ValueType>::CHashMap(int tableSize)
     : m_TableSize(tableSize)
 {
-    m_Table = new ListNode<KeyType, ValueType>*[m_TableSize] {0};
+    m_Table = new ListNode*[m_TableSize] {0};
 }
 
 // copy assignment, duplicates the entire map
@@ -73,22 +74,22 @@ CHashMap<KeyType, ValueType>& CHashMap<KeyType, ValueType>::operator=(const CHas
 {
     clear();
 
-    std::unique_lock<std::shared_mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(m_Mutex);
     m_TableSize = other.m_TableSize;
-    m_Table = new ListNode<KeyType, ValueType>*[m_TableSize] {0};
+    m_Table = new ListNode*[m_TableSize] {0};
 
     // copy all nodes, deep-copy
     for (int i = 0; i < m_TableSize; ++i)
     {
-        ListNode<KeyType, ValueType>* node = other.m_Table[i];
-        ListNode<KeyType, ValueType>* previousNode = 0;
+        ListNode* node = other.m_Table[i];
+        ListNode* previousNode = 0;
         while (node)
         {
-            ListNode<KeyType, ValueType>* newNode = new ListNode<KeyType, ValueType>(node->key, node->value);
+            ListNode* newNode = new ListNode(node->key, node->value);
             if (!previousNode)
                 m_Table[i] = newNode;
             else
-                previousNode.pNext = newNode
+                previousNode.pNext = newNode;
             previousNode = newNode;
             node = node->pNext;
         }
@@ -100,7 +101,7 @@ CHashMap<KeyType, ValueType>& CHashMap<KeyType, ValueType>::operator=(const CHas
 template <class KeyType, class ValueType>
 CHashMap<KeyType, ValueType>& CHashMap<KeyType, ValueType>::operator=(CHashMap&& other)
 {
-    std::unique_lock<std::shared_mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(m_Mutex);
     m_TableSize = std::move(other.m_TableSize);
     m_Table = other.m_Table; // shallow-copy
     other.m_Table = 0;
@@ -118,12 +119,12 @@ int CHashMap<KeyType, ValueType>::hash(const KeyType& value) const
 template <class KeyType, class ValueType>
 ValueType& CHashMap<KeyType, ValueType>::insert(const KeyType& key, const ValueType& value)
 {
-    std::unique_lock<std::shared_mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(m_Mutex);
     int index = hash(key);
-    ListNode<KeyType, ValueType>* node = m_Table[index];
+    ListNode* node = m_Table[index];
     if (!node) // first element at index, insert new node here
     {
-        ListNode<KeyType, ValueType>* newNode = new ListNode<KeyType, ValueType>(key, value);
+        ListNode* newNode = new ListNode(key, value);
         m_Table[index] = newNode;
         return newNode->value;
     }
@@ -138,7 +139,7 @@ ValueType& CHashMap<KeyType, ValueType>::insert(const KeyType& key, const ValueT
         node = node->pNext;
     }
     // insert a new node at the end of chain
-    ListNode<KeyType, ValueType>* newNode = new ListNode<KeyType, ValueType>(key, value);
+    ListNode* newNode = new ListNode(key, value);
     node->pNext = newNode;
     return newNode->value;
 }
@@ -148,9 +149,9 @@ ValueType& CHashMap<KeyType, ValueType>::insert(const KeyType& key, const ValueT
 template <class KeyType, class ValueType>
 ValueType& CHashMap<KeyType, ValueType>::operator[](const KeyType& key)
 {
-    std::shared_lock<std::shared_mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_timed_mutex> lock(m_Mutex);
     int index = hash(key);
-    ListNode<KeyType, ValueType>* node = m_Table[index];
+    ListNode* node = m_Table[index];
     // search in the list
     while (node)
     {
@@ -168,10 +169,10 @@ ValueType& CHashMap<KeyType, ValueType>::operator[](const KeyType& key)
 template <class KeyType, class ValueType>
 void CHashMap<KeyType, ValueType>::remove(const KeyType& key)
 {
-    std::unique_lock<std::shared_mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(m_Mutex);
     int index = hash(key);
-    ListNode<KeyType, ValueType>* node = m_Table[index];
-    ListNode<KeyType, ValueType>* prev = 0;
+    ListNode* node = m_Table[index];
+    ListNode* prev = 0;
     // search in the list
     while (node)
     {
@@ -194,10 +195,10 @@ void CHashMap<KeyType, ValueType>::remove(const KeyType& key)
 template <class KeyType, class ValueType>
 void CHashMap<KeyType, ValueType>::print() const
 {
-    std::shared_lock<std::shared_mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_timed_mutex> lock(m_Mutex);
     for (int i = 0; i < m_TableSize; ++i)
     {
-        ListNode<KeyType, ValueType>* node = m_Table[i];
+        ListNode* node = m_Table[i];
         while (node)
         {
             std::cout << '(' << node->key << ',' << node->value << ")->";
@@ -213,11 +214,11 @@ void CHashMap<KeyType, ValueType>::print() const
 template <class KeyType, class ValueType>
 void CHashMap<KeyType, ValueType>::resize(int newSize)
 {
-    std::unique_lock<std::shared_mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(m_Mutex);
     CHashMap<KeyType, ValueType> newMap(newSize);
     for (int i = 0; i < m_TableSize; ++i)
     {
-        ListNode<KeyType, ValueType>* node = m_Table[i];
+        ListNode* node = m_Table[i];
         while (node)
         {
             newMap.insert(node->key, node->value);
@@ -233,13 +234,13 @@ void CHashMap<KeyType, ValueType>::resize(int newSize)
 template <class KeyType, class ValueType>
 void CHashMap<KeyType, ValueType>::clear()
 {
-    std::unique_lock<std::shared_mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(m_Mutex);
     for (int i = 0; i < m_TableSize; ++i)
     {
-        ListNode<KeyType, ValueType>* node = m_Table[i];
+        ListNode* node = m_Table[i];
         while (node)
         {
-            ListNode<KeyType, ValueType>* temp = node->pNext;
+            ListNode* temp = node->pNext;
             delete node;
             node = temp;
         }
