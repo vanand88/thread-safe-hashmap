@@ -1,9 +1,9 @@
 # thread-safe-hashmap
-Thread-safe hashmap with the following features:
+Thread-safe hashmap
 
-Uses fixed-size C-style array to store elements, collisions are handled using chaining, hash function is implemented as modulus of the key with respect to array size
+Features: insert, remove, operator[], at, clear, print, copy assignment, move assignment
 
-Features: insert, remove, operator[], at, clear, print, assignment, move assignment
+Fixed-size C-style array is used to store elements, collisions are handled using chaining, hash function is implemented as modulus of the key with respect to array size
 
 Thread-safety is gained using shared_timed_mutex, which is locked using shared_lock during read operations, and locked using unique_lock during write operations,
 so that multiple readers can read at the same time, but only one writer writes at a time.

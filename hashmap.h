@@ -9,7 +9,7 @@
 // uses fixed-size C-style array to store elements
 // collisions are handled using chaining
 // hash function is implemented as modulus of the key with respect to array size
-// supports insert, remove, operator[], at, clear, print, assignment, move assignment
+// supports insert, remove, operator[], at, clear, print, copy assignment, move assignment
 // supports resize operation to change array size - complexity O(N), where N is the number of elements in the hashmap
 // thread-safety is gained using shared_timed_mutex, which is locked using shared_lock during read operations, and locked using unique_lock during write operations,
 // so that multiple readers can read at the same time, but only one writer writes at a time. shared_timed_mutex is used to comply with C++14 standard.
