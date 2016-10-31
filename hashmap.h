@@ -9,7 +9,7 @@
 // uses fixed-size C-style array to store elements
 // collisions are handled using chaining
 // hash function is implemented as modulus of the key with respect to array size
-// supports insert, remove, operator[], clear, print, assignment, move
+// supports insert, remove, operator[], at, clear, print, assignment, move assignment
 // supports resize operation to change array size - complexity O(N), where N is the number of elements in the hashmap
 // thread-safety is gained using shared_timed_mutex, which is locked using shared_lock during read operations, and locked using unique_lock during write operations,
 // so that multiple readers can read at the same time, but only one writer writes at a time. shared_timed_mutex is used to comply with C++14 standard.
@@ -21,6 +21,7 @@ public:
     CHashMap(int tableSize);
     ValueType& insert(const KeyType& key, const ValueType& value);
     ValueType& operator[](const KeyType& key);
+    ValueType& at(const KeyType& key);
     void remove(const KeyType& key);
     // assignment operator
     CHashMap& operator=(const CHashMap& other);
@@ -89,7 +90,7 @@ CHashMap<KeyType, ValueType>& CHashMap<KeyType, ValueType>::operator=(const CHas
             if (!previousNode)
                 m_Table[i] = newNode;
             else
-                previousNode.pNext = newNode;
+                previousNode->pNext = newNode;
             previousNode = newNode;
             node = node->pNext;
         }
@@ -105,6 +106,7 @@ CHashMap<KeyType, ValueType>& CHashMap<KeyType, ValueType>::operator=(CHashMap&&
     m_TableSize = std::move(other.m_TableSize);
     m_Table = other.m_Table; // shallow-copy
     other.m_Table = 0;
+    other.m_TableSize = 0;
     return *this;
 }
 
@@ -165,6 +167,25 @@ ValueType& CHashMap<KeyType, ValueType>::operator[](const KeyType& key)
     return insert(key, val);
 }
 
+// returns a reference to the value of the element with specified key
+// if key is not found, out_of_range exception is thrown
+template <class KeyType, class ValueType>
+ValueType& CHashMap<KeyType, ValueType>::at(const KeyType& key)
+{
+    std::shared_lock<std::shared_timed_mutex> lock(m_Mutex);
+    int index = hash(key);
+    ListNode* node = m_Table[index];
+    // search in the list
+    while (node)
+    {
+        if (node->key == key)
+            return node->value;
+        node = node->pNext;
+    }
+    // not found, throw out_of_range exception
+    throw std::out_of_range("Key not found");
+}
+
 // removes the element with specified key
 template <class KeyType, class ValueType>
 void CHashMap<KeyType, ValueType>::remove(const KeyType& key)
@@ -206,6 +227,7 @@ void CHashMap<KeyType, ValueType>::print() const
         }
         std::cout << "0\n";
     }
+    std::cout << std::endl;
 }
 
 // resize - changes the size of underlying array
