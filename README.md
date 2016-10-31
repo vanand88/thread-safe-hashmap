@@ -14,7 +14,7 @@ Hashmap is implemented as template class with key type and value type as templat
 
 Supports table resizing
 
-A main program is included that tests map functionality
+A main program is included that tests hashmap functionality
 
 Use make command to build, options: prep (creates output directories), debug, release, clean: default is release
 
